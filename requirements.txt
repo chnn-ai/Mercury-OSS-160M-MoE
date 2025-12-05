@@ -7,4 +7,5 @@ tiktoken
 transformers
 datasets
 huggingface_hub
-accelerate  
+accelerate 
+wandb 

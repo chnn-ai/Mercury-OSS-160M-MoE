@@ -1,9 +1,10 @@
-from torch.utils.data import Dataset, DataLoader
 import tiktoken
 import torch
 import torch.nn as nn
 import pickle
 
+from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.distributed import DistributedSampler
 from datasets import load_dataset, load_from_disk
 
 tokenizer = tiktoken.get_encoding('gpt2')
@@ -39,11 +40,20 @@ class GPTDatasetV1(Dataset):
         return self.input_ids[idx], self.target_ids[idx]
 
 def create_dataloader_v1(text, batch_size = 4, max_length = 48, stride = 128, shuffle = True,
-                         drop_last = True, num_workers = 0, pin_memory = True):
-    #tokenizer = tiktoken.get_encoding('gpt2')
+                         drop_last = True, num_workers = 0, pin_memory = True, distributed = False):
+    
     dataset = GPTDatasetV1(text, max_length, stride)
-    dataloader = DataLoader(dataset, batch_size = batch_size, shuffle = shuffle,
-                             drop_last = drop_last, num_workers = num_workers, pin_memory= pin_memory)   
-    return dataloader
+    sampler = None
+    if distributed:
+        sampler = DistributedSampler(dataset, shuffle = shuffle)
+        shuffle = False
+    dataloader = DataLoader(dataset,
+                            batch_size = batch_size,
+                            shuffle = shuffle,
+                            sampler = sampler,
+                            drop_last = drop_last, 
+                            num_workers = num_workers,
+                            pin_memory= pin_memory)   
+    return dataloader, sampler
 
 

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.utils.checkpoint import checkpoint
 
 
 def get_dtype():
@@ -123,7 +124,23 @@ class GroupQueryAttention(nn.Module):
         context = attention_weights.transpose(1,2).reshape(b, seq_len, self.d_out)
         return self.out_proj(context)
     
+class FeedForward(nn.Module):
+    def __init__(self, cfg):
+        super().__init__()
+        self.embed_dim = cfg["embed_dim"]
+        self.intermediate_size = cfg["intermediate_size"]
 
+        self.w1 = nn.Linear(self.embed_dim, self.intermediate_size, bias = False, dtype = cfg["dtype"])
+        self.w2 = nn.Linear(self.embed_dim, self.intermediate_size, bias = False, dtype = cfg["dtype"])
+        self.w3 = nn.Linear(self.intermediate_size, self.embed_dim, bias = False, dtype = cfg["dtype"])
+
+    def forward(self,x):
+        hidden_states = nn.functional.silu(self.w1(x)) * self.w2(x)
+        return self.w3(hidden_states)
+
+
+
+        
 class MoE(nn.Module):
     def __init__(self, cfg):
         super().__init__()
@@ -207,7 +224,12 @@ class Transformer(nn.Module):
         x = shortcut + x
 
         return x
-    
+
+#add checkpoints to save memory
+def checkpointed_block(block, x, mask):
+    return block(x, mask)
+
+
 class MercuryOSS(nn.Module):
     def __init__(self, cfg):
         super().__init__()
@@ -242,7 +264,10 @@ class MercuryOSS(nn.Module):
         mask = mask[None, None, :, :].bool()
 
         for block in self.blocks:
-            x = block(x, mask)
+            if self.training:
+                x = checkpoint(checkpointed_block(block, x, mask), block, x, mask, use_reentrant=False)
+            else:
+                x = block(x, mask)
         
         x = self.fn(x)
         x = x @ self.embedding.weight.T
