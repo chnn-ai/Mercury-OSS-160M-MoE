@@ -10,7 +10,7 @@ from datasets import load_dataset, load_from_disk
 tokenizer = tiktoken.get_encoding('gpt2')
 
 
-class GPTDatasetV1(Dataset):
+class MercuryDatasetV1(Dataset):
     def __init__(self, tokenized_data, max_length, stride):
         self.input_ids = []
         self.target_ids = []
@@ -42,7 +42,7 @@ class GPTDatasetV1(Dataset):
 def create_dataloader_v1(text, batch_size = 4, max_length = 48, stride = 128, shuffle = True,
                          drop_last = True, num_workers = 0, pin_memory = True, distributed = False):
     
-    dataset = GPTDatasetV1(text, max_length, stride)
+    dataset = MercuryDatasetV1(text, max_length, stride)
     sampler = None
     if distributed:
         sampler = DistributedSampler(dataset, shuffle = shuffle)
