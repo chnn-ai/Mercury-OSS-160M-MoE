@@ -5,7 +5,7 @@ import pickle
 
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.distributed import DistributedSampler
-from datasets import load_dataset, load_from_disk
+
 
 tokenizer = tiktoken.get_encoding('gpt2')
 
